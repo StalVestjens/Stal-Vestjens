@@ -15,11 +15,11 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const inv = await db.invoice.findUnique({ where: { id }, include: { customer: true, lines: { orderBy: { sort: "asc" } }, creditOf: true, credits: true } });
   if (!inv) notFound();
-  const [s, b] = await Promise.all([getSettings(["bedrijfsnaam", "adres", "kvk", "btw", "iban", "factuur_voettekst"]), getBranding()]);
+  const [s, b] = await Promise.all([getSettings(["bedrijfsnaam", "bedrijfsnaam_juridisch", "adres", "email", "kvk", "btw", "iban", "factuur_voettekst"]), getBranding()]);
   const t = invoiceTotals(inv.lines);
   const isCredit = inv.status === "CREDIT";
   const subject = encodeURIComponent(`${isCredit ? "Creditnota" : inv.status === "HERINNERD" ? "Herinnering factuur" : "Factuur"} ${inv.number} – ${b.naam}`);
-  const body = encodeURIComponent(`Beste ${inv.customer.name},\n\n${inv.status === "HERINNERD" ? `Volgens onze administratie is factuur ${inv.number} van ${fmtDate(inv.date)} (${fmtMoney(t.total)}) nog niet voldaan. De vervaldatum was ${fmtDate(inv.dueDate)}. Wilt u het bedrag alsnog overmaken?` : `Hierbij ${isCredit ? "de creditnota" : "de factuur"} ${inv.number} van ${fmtMoney(t.total)}${isCredit ? "" : `, te voldoen voor ${fmtDate(inv.dueDate)}`}.`}\n\nIBAN: ${s.iban}\nOnder vermelding van: ${inv.number}\n\nMet vriendelijke groet,\n${b.naam}`);
+  const body = encodeURIComponent(`Beste ${inv.customer.name},\n\n${inv.status === "HERINNERD" ? `Volgens onze administratie is factuur ${inv.number} van ${fmtDate(inv.date)} (${fmtMoney(t.total)}) nog niet voldaan. De vervaldatum was ${fmtDate(inv.dueDate)}. Wilt u het bedrag alsnog overmaken?` : `Hierbij ${isCredit ? "de creditnota" : "de factuur"} ${inv.number} van ${fmtMoney(t.total)}${isCredit ? "" : `, te voldoen voor ${fmtDate(inv.dueDate)}`}.`}\n\nIBAN: ${s.iban}\nOnder vermelding van: ${inv.number}\n\nMet vriendelijke groet,\n${s.bedrijfsnaam_juridisch || b.naam}`);
 
   return (
     <>
@@ -44,7 +44,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
 
       <Card>
         <div className="grid grid-cols-2 gap-6 mb-6 text-sm">
-          <div className="flex items-start gap-4"><img src={b.logoUrl} alt="" className="logo-print" /><div><div className="font-bold text-lg">{b.naam}</div><div className="whitespace-pre-line muted">{s.adres}</div><div className="muted">KvK {s.kvk} · BTW {s.btw}</div></div></div>
+          <div className="flex items-start gap-4"><img src={b.logoUrl} alt="" className="logo-print" /><div><div className="font-bold text-lg">{s.bedrijfsnaam_juridisch || b.naam}</div><div className="whitespace-pre-line muted">{s.adres}</div>{s.email && <div className="muted">{s.email}</div>}<div className="muted">KvK {s.kvk} · BTW {s.btw}</div></div></div>
           <div className="text-right"><div className="font-bold">{inv.customer.company ?? inv.customer.name}</div>{inv.customer.company && <div>{inv.customer.name}</div>}<div className="muted">{inv.customer.address}<br />{inv.customer.postalCode} {inv.customer.city}</div>{inv.customer.vatNumber && <div className="muted">BTW {inv.customer.vatNumber}</div>}</div>
         </div>
         <div className="flex gap-8 text-sm mb-4"><div><span className="muted">Nummer</span><br /><strong>{inv.number}</strong></div><div><span className="muted">Datum</span><br />{fmtDate(inv.date)}</div>{!isCredit && <div><span className="muted">Vervaldatum</span><br />{fmtDate(inv.dueDate)}</div>}</div>

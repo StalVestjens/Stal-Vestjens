@@ -13,14 +13,14 @@ export default async function InvoicePrint({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const inv = await db.invoice.findUnique({ where: { id }, include: { customer: true, lines: { orderBy: { sort: "asc" } } } });
   if (!inv) notFound();
-  const [s, b] = await Promise.all([getSettings(["bedrijfsnaam", "adres", "kvk", "btw", "iban", "factuur_voettekst"]), getBranding()]);
+  const [s, b] = await Promise.all([getSettings(["bedrijfsnaam", "bedrijfsnaam_juridisch", "adres", "email", "kvk", "btw", "iban", "factuur_voettekst"]), getBranding()]);
   const t = invoiceTotals(inv.lines);
   const isCredit = inv.status === "CREDIT";
   return (
     <div className="bg-white text-black p-10 max-w-3xl mx-auto text-sm" style={{ fontFamily: "ui-sans-serif, system-ui" }}>
       <PrintButton />
       <div className="flex justify-between mb-10">
-        <div className="flex items-start gap-4"><img src={b.logoUrl} alt="" style={{ height: 72, width: "auto", borderRadius: 8 }} /><div><div className="text-2xl font-bold">{b.naam}</div><div className="whitespace-pre-line text-gray-600">{s.adres}</div><div className="text-gray-600">KvK {s.kvk} · BTW {s.btw}</div></div></div>
+        <div className="flex items-start gap-4"><img src={b.logoUrl} alt="" style={{ height: 72, width: "auto", borderRadius: 8 }} /><div><div className="text-2xl font-bold">{s.bedrijfsnaam_juridisch || b.naam}</div><div className="whitespace-pre-line text-gray-600">{s.adres}</div>{s.email && <div className="text-gray-600">{s.email}</div>}<div className="text-gray-600">KvK {s.kvk} · BTW {s.btw}</div></div></div>
         <div className="text-right"><div className="text-3xl font-bold">{isCredit ? "CREDITNOTA" : "FACTUUR"}</div><div className="mt-2">Nummer <strong>{inv.number}</strong></div><div>Datum {fmtDate(inv.date)}</div>{!isCredit && <div>Vervaldatum {fmtDate(inv.dueDate)}</div>}</div>
       </div>
       <div className="mb-8"><div className="text-gray-500 text-xs uppercase">Aan</div><div className="font-bold">{inv.customer.company ?? inv.customer.name}</div>{inv.customer.company && <div>{inv.customer.name}</div>}<div>{inv.customer.address}</div><div>{inv.customer.postalCode} {inv.customer.city}</div>{inv.customer.vatNumber && <div>BTW {inv.customer.vatNumber}</div>}</div>

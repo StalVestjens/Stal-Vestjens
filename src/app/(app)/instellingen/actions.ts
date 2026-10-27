@@ -14,7 +14,7 @@ import { testWhatsApp } from "@/lib/integrations/whatsapp";
 
 export async function saveCompany(fd: FormData) {
   await requireSession("EIGENAAR");
-  for (const k of ["adres", "kvk", "btw", "iban", "factuur_prefix", "betaaltermijn_dagen", "factuur_voettekst"]) await setSetting(k, String(fd.get(k) ?? "").trim());
+  for (const k of ["bedrijfsnaam_juridisch", "adres", "email", "kvk", "btw", "iban", "factuur_prefix", "betaaltermijn_dagen", "factuur_voettekst"]) await setSetting(k, String(fd.get(k) ?? "").trim());
   revalidatePath("/instellingen");
   redirect("/instellingen?ok=1");
 }

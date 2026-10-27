@@ -8,7 +8,7 @@ export default async function CompanySettings({ searchParams }: { searchParams: 
   await requireSession("EIGENAAR");
   const sp = await searchParams;
   const [s, b] = await Promise.all([
-    getSettings(["bedrijfsnaam", "adres", "kvk", "btw", "iban", "factuur_prefix", "betaaltermijn_dagen", "factuur_voettekst", "kleur_accent", "kleur_zijbalk", "logo_key"]),
+    getSettings(["bedrijfsnaam", "bedrijfsnaam_juridisch", "adres", "email", "kvk", "btw", "iban", "factuur_prefix", "betaaltermijn_dagen", "factuur_voettekst", "kleur_accent", "kleur_zijbalk", "logo_key"]),
     getBranding(),
   ]);
   return (
@@ -38,6 +38,8 @@ export default async function CompanySettings({ searchParams }: { searchParams: 
 
       <Card title="Bedrijfsgegevens (op facturen)">
         <form action={saveCompany} className="grid md:grid-cols-2 gap-3">
+          <Field label="Juridische naam (op facturen)"><input name="bedrijfsnaam_juridisch" className="input" defaultValue={s.bedrijfsnaam_juridisch} placeholder="Stal Vestjens B.V." /></Field>
+          <Field label="E-mailadres (op facturen)"><input name="email" type="email" className="input" defaultValue={s.email} /></Field>
           <Field label="IBAN"><input name="iban" className="input" defaultValue={s.iban} /></Field>
           <Field label="Betaaltermijn (dagen)"><input name="betaaltermijn_dagen" type="number" className="input" defaultValue={s.betaaltermijn_dagen || "14"} /></Field>
           <Field label="Adres (meerdere regels)" className="md:col-span-2"><textarea name="adres" className="textarea" rows={3} defaultValue={s.adres} /></Field>

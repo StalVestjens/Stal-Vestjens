@@ -54,15 +54,19 @@ async function main() {
 
   const defaults: Record<string, string> = {
     bedrijfsnaam: "Stal Vestjens",
-    adres: "",
-    kvk: "",
-    btw: "",
-    iban: "",
+    bedrijfsnaam_juridisch: "Stal Vestjens B.V.",
+    adres: "Zeesweg 7\n5975 PP Sevenum",
+    email: "info@stalvestjens.nl",
+    kvk: "42068948",
+    btw: "NL869564419B01",
+    iban: "NL79RABO0142671762",
     factuur_prefix: new Date().getFullYear().toString(),
     betaaltermijn_dagen: "14",
   };
   for (const [key, value] of Object.entries(defaults)) {
     await db.setting.upsert({ where: { key }, update: {}, create: { key, value } });
+    // Nog lege instelling uit een eerdere versie: standaardwaarde invullen (eigen wijzigingen blijven staan).
+    if (value) await db.setting.updateMany({ where: { key, value: "" }, data: { value } });
   }
   // Oude plaatsvervangende naam uit een eerdere versie vervangen door de echte bedrijfsnaam.
   await db.setting.updateMany({ where: { key: "bedrijfsnaam", value: "Mijn Paardenhouderij" }, data: { value: "Stal Vestjens" } });
