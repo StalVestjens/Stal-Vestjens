@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f6f4ef;
+  --card: #ffffff;
+  --ink: #1f2a24;
+  --muted: #6b7570;
+  --line: #e3dfd5;
+  --accent: #2f5d45;
+  --accent-ink: #ffffff;
+  --warn: #b7791f;
+  --danger: #a33a2e;
+}
+
+html, body { background: var(--bg); color: var(--ink); }
+body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+.btn { display: inline-flex; align-items: center; gap: .4rem; padding: .5rem .9rem; border-radius: 8px; font-weight: 600; font-size: .9rem; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+.btn:hover { background: #f1efe8; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn-primary:hover { background: #244a37; }
+.btn-danger { color: var(--danger); }
+.btn-sm { padding: .3rem .6rem; font-size: .8rem; }
+.input, .select, .textarea { width: 100%; padding: .5rem .65rem; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: .9rem; }
+.input:focus, .select:focus, .textarea:focus { outline: 2px solid #9fc2ad; outline-offset: 0; }
+.label { display: block; font-size: .78rem; font-weight: 600; color: var(--muted); margin-bottom: .25rem; }
+.field { display: flex; flex-direction: column; }
+table.tbl { width: 100%; border-collapse: collapse; font-size: .9rem; }
+table.tbl th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: .5rem .6rem; border-bottom: 1px solid var(--line); }
+table.tbl td { padding: .55rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.tbl tr:last-child td { border-bottom: 0; }
+.badge { display: inline-block; padding: .15rem .5rem; border-radius: 999px; font-size: .72rem; font-weight: 600; background: #ece9e0; color: var(--ink); }
+.badge-ok { background: #dcefe3; color: #1f5a3a; }
+.badge-warn { background: #f8ead1; color: #7a4f0b; }
+.badge-danger { background: #f6dcd8; color: #7c2a20; }
+.nav a { display: flex; align-items: center; gap: .6rem; padding: .5rem .75rem; border-radius: 8px; color: #d9e4dc; font-size: .9rem; }
+.nav a:hover { background: rgba(255,255,255,.08); color: #fff; }
+.nav a.active { background: rgba(255,255,255,.14); color: #fff; font-weight: 600; }
+.muted { color: var(--muted); }
+details > summary { cursor: pointer; }

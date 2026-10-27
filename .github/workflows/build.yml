@@ -1,0 +1,55 @@
+# Automatische controle bij elke wijziging: installeren, typecontrole, database aanmaken, bouwen en starten.
+name: Build & test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: stal
+          POSTGRES_PASSWORD: stal
+          POSTGRES_DB: stalbeheer
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://stal:stal@localhost:5432/stalbeheer
+      AUTH_SECRET: alleen-voor-de-test-0123456789abcdef
+      UPLOAD_DIR: /tmp/uploads
+      SEED_OWNER_EMAIL: test@voorbeeld.nl
+      SEED_OWNER_PASSWORD: testwachtwoord
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm install
+        run: npm install
+      - name: Typecontrole
+        run: npx tsc --noEmit
+      - name: Database aanmaken
+        run: npx prisma db push --skip-generate
+      - name: Eerste account en diensten
+        run: npm run db:seed
+      - name: Bouwen
+        run: npm run build
+      - name: Starten en controleren
+        run: |
+          npm start > server.log 2>&1 &
+          for i in $(seq 1 30); do curl -s -o /dev/null http://localhost:3000/login && break; sleep 1; done
+          echo "Loginpagina: $(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/login)"
+          echo "Beveiligde pagina zonder login: $(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/paarden)"
+          echo "Sync zonder sleutel: $(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/sync)"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/login)" = "200"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/sync)" = "401"
+          cat server.log

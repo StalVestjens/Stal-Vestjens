@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stal
+      POSTGRES_PASSWORD: stal
+      POSTGRES_DB: stalbeheer
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on: [db]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://stal:stal@db:5432/stalbeheer
+      UPLOAD_DIR: /data/uploads
+    ports:
+      - "3000:3000"
+    volumes:
+      - uploads:/data/uploads
+
+volumes:
+  dbdata:
+  uploads:

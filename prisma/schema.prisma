@@ -1,0 +1,451 @@
+// Datamodel van het stalplatform.
+// Standaard PostgreSQL (bijv. Supabase, Neon of eigen server).
+// Velden met de naam `extra` bevatten de waarden van zelf aangemaakte velden (Instellingen > Eigen velden).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Gebruikers ----------
+
+enum Role {
+  EIGENAAR
+  MEDEWERKER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(MEDEWERKER)
+  phone        String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  tasks Task[] @relation("TaskAssignee")
+}
+
+// ---------- Klanten / eigenaren ----------
+
+model Customer {
+  id         String   @id @default(cuid())
+  name       String
+  company    String?
+  email      String?
+  phone      String?
+  address    String?
+  postalCode String?
+  city       String?
+  country    String?  @default("NL")
+  vatNumber  String?
+  notes      String?
+  extra      Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  horses     Horse[]
+  invoices   Invoice[]
+  transports Transport[]
+}
+
+// ---------- Paarden ----------
+
+enum Sex {
+  HENGST
+  MERRIE
+  RUIN
+}
+
+enum HorseStatus {
+  AANWEZIG
+  AFWEZIG
+  VERKOCHT
+  OVERLEDEN
+}
+
+model Horse {
+  id          String      @id @default(cuid())
+  name        String
+  nickname    String?
+  ueln        String?     @unique
+  chipNumber  String?
+  fei         String?
+  knhsNumber  String?
+  studbook    String?
+  sex         Sex?
+  color       String?
+  birthDate   DateTime?
+  sire        String?
+  dam         String?
+  damSire     String?
+  breeder     String?
+  heightCm    Int?
+  discipline  String?
+  level       String?
+  rider       String?
+  stall       String?
+  status      HorseStatus @default(AANWEZIG)
+  photoFileId String?
+  notes       String?
+  extra       Json        @default("{}")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  ownerId String?
+  owner   Customer? @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+
+  healthRecords    HealthRecord[]
+  files            MediaFile[]
+  results          CompetitionResult[]
+  tasks            Task[]
+  rvoNotifications RvoNotification[]
+  transportHorses  TransportHorse[]
+}
+
+// Vaccinaties, ontworming, smid, dierenarts, fysio, tandarts, etc.
+enum HealthType {
+  VACCINATIE
+  ONTWORMING
+  SMID
+  DIERENARTS
+  FYSIO
+  TANDARTS
+  ROENTGEN
+  BEHANDELING
+  OVERIG
+}
+
+model HealthRecord {
+  id          String     @id @default(cuid())
+  horseId     String
+  horse       Horse      @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  type        HealthType
+  date        DateTime
+  title       String
+  product     String?
+  batchNumber String?
+  provider    String?
+  cost        Decimal?   @db.Decimal(10, 2)
+  nextDueDate DateTime?
+  notes       String?
+  createdAt   DateTime   @default(now())
+
+  files MediaFile[]
+}
+
+// Foto's, filmpjes, röntgenbeelden, documenten (paspoort, bloeduitslag, keuring)
+enum MediaKind {
+  FOTO
+  VIDEO
+  ROENTGEN
+  DOCUMENT
+}
+
+enum MediaSource {
+  UPLOAD
+  WHATSAPP
+  DELEN
+}
+
+model MediaFile {
+  id          String      @id @default(cuid())
+  horseId     String?
+  horse       Horse?      @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  healthId    String?
+  health      HealthRecord? @relation(fields: [healthId], references: [id], onDelete: SetNull)
+  resultId    String?
+  result      CompetitionResult? @relation(fields: [resultId], references: [id], onDelete: SetNull)
+  kind        MediaKind
+  source      MediaSource @default(UPLOAD)
+  title       String?
+  fileName    String
+  mimeType    String
+  size        Int
+  storageKey  String      @unique
+  externalId  String?     @unique // bv. "whatsapp:<bericht-id>" tegen dubbele verwerking
+  takenAt     DateTime?
+  notes       String?
+  createdAt   DateTime    @default(now())
+}
+
+// ---------- Wedstrijden ----------
+
+enum ResultSource {
+  HANDMATIG
+  EQUIPE
+  KNHS
+  EQUICOMPETITIONS
+}
+
+model CompetitionResult {
+  id          String       @id @default(cuid())
+  horseId     String
+  horse       Horse        @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  date        DateTime
+  showName    String
+  className   String?
+  discipline  String?
+  level       String?
+  rider       String?
+  rank        Int?
+  score       String?
+  points      Decimal?     @db.Decimal(8, 3)
+  prizeMoney  Decimal?     @db.Decimal(10, 2)
+  location    String?
+  country     String?
+  source      ResultSource @default(HANDMATIG)
+  externalId  String?
+  notes       String?
+  createdAt   DateTime     @default(now())
+
+  files MediaFile[]
+
+  @@unique([source, externalId])
+}
+
+// ---------- Dagplanning & taken ----------
+
+enum TaskStatus {
+  OPEN
+  BEZIG
+  KLAAR
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  date        DateTime   @db.Date
+  startTime   String?
+  durationMin Int?
+  title       String
+  category    String?
+  notes       String?
+  status      TaskStatus @default(OPEN)
+  doneAt      DateTime?
+  seriesId    String?
+  createdAt   DateTime   @default(now())
+
+  horseId    String?
+  horse      Horse?  @relation(fields: [horseId], references: [id], onDelete: SetNull)
+  assigneeId String?
+  assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+}
+
+// ---------- Facturatie ----------
+
+enum InvoiceStatus {
+  CONCEPT
+  VERZONDEN
+  BETAALD
+  HERINNERD
+  CREDIT        // dit document is zelf een creditnota
+  GECREDITEERD  // oorspronkelijke factuur die door een creditnota is vervallen
+  VERVALLEN
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  number      String        @unique
+  customerId  String
+  customer    Customer      @relation(fields: [customerId], references: [id])
+  date        DateTime
+  dueDate     DateTime
+  status      InvoiceStatus @default(CONCEPT)
+  notes       String?
+  creditOfId  String?
+  creditOf    Invoice?      @relation("Credit", fields: [creditOfId], references: [id])
+  credits     Invoice[]     @relation("Credit")
+  sentAt      DateTime?
+  paidAt      DateTime?
+  createdAt   DateTime      @default(now())
+
+  lines InvoiceLine[]
+}
+
+model InvoiceLine {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Decimal @db.Decimal(10, 2)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  vatRate     Decimal @db.Decimal(4, 1)
+  horseName   String?
+  sort        Int     @default(0)
+}
+
+// Vaste producten/diensten (pension, les, transport per km, ...)
+model Product {
+  id        String  @id @default(cuid())
+  name      String
+  unitPrice Decimal @db.Decimal(10, 2)
+  vatRate   Decimal @db.Decimal(4, 1)
+  unit      String?
+  active    Boolean @default(true)
+}
+
+// ---------- Transport ----------
+
+model Vehicle {
+  id                 String    @id @default(cuid())
+  name               String
+  licensePlate       String    @unique
+  type               String?
+  capacityHorses     Int?
+  fleetgoId          String?
+  odometerKm         Int?
+  apkDate            DateTime?
+  tachoCalibration   DateTime?
+  lastTachoDownload  DateTime?
+  lastCardDownload   DateTime?
+  extra              Json      @default("{}")
+  notes              String?
+
+  transports Transport[]
+}
+
+enum TransportStatus {
+  GEPLAND
+  ONDERWEG
+  AFGEROND
+  GEANNULEERD
+}
+
+model Transport {
+  id          String          @id @default(cuid())
+  date        DateTime
+  fromAddress String
+  toAddress   String
+  distanceKm  Decimal?        @db.Decimal(8, 1)
+  price       Decimal?        @db.Decimal(10, 2)
+  driver      String?
+  status      TransportStatus @default(GEPLAND)
+  notes       String?
+  invoiced    Boolean         @default(false)
+  externalTripId String?
+
+  vehicleId  String?
+  vehicle    Vehicle?  @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  horses TransportHorse[]
+}
+
+model TransportHorse {
+  transportId String
+  transport   Transport @relation(fields: [transportId], references: [id], onDelete: Cascade)
+  horseId     String
+  horse       Horse     @relation(fields: [horseId], references: [id], onDelete: Cascade)
+
+  @@id([transportId, horseId])
+}
+
+// ---------- Zonnepanelen ----------
+
+model SolarInstallation {
+  id            String    @id @default(cuid())
+  name          String
+  location      String?
+  panels        Int?
+  peakPowerKwp  Decimal?  @db.Decimal(8, 2)
+  inverter      String?
+  installedAt   DateTime?
+  feedInRate    Decimal?  @db.Decimal(6, 4)
+  notes         String?
+
+  readings SolarReading[]
+}
+
+model SolarReading {
+  id             String            @id @default(cuid())
+  installationId String
+  installation   SolarInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  date           DateTime          @db.Date
+  producedKwh    Decimal           @db.Decimal(10, 2)
+  feedInKwh      Decimal?          @db.Decimal(10, 2)
+  notes          String?
+
+  @@unique([installationId, date])
+}
+
+// ---------- RVO (I&R paardachtigen) ----------
+
+enum RvoType {
+  AANVOER
+  AFVOER
+  GEBOORTE
+  DOOD
+  EXPORT
+  IMPORT
+}
+
+enum RvoStatus {
+  TE_MELDEN
+  GEMELD
+  FOUT
+}
+
+model RvoNotification {
+  id         String    @id @default(cuid())
+  horseId    String
+  horse      Horse     @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  type       RvoType
+  eventDate  DateTime
+  ubnOther   String?
+  status     RvoStatus @default(TE_MELDEN)
+  reportedAt DateTime?
+  rvoRef     String?
+  error      String?
+  createdAt  DateTime  @default(now())
+}
+
+// ---------- Maatwerk: zelf gedefinieerde velden ----------
+
+enum FieldEntity {
+  HORSE
+  CUSTOMER
+  VEHICLE
+}
+
+enum FieldType {
+  TEKST
+  GETAL
+  DATUM
+  KEUZE
+  JANEE
+}
+
+model CustomField {
+  id       String      @id @default(cuid())
+  entity   FieldEntity
+  key      String
+  label    String
+  type     FieldType   @default(TEKST)
+  options  String[]
+  sort     Int         @default(0)
+
+  @@unique([entity, key])
+}
+
+// ---------- Instellingen & koppelingen ----------
+
+model Setting {
+  key   String @id
+  value String
+}
+
+model SyncLog {
+  id          String   @id @default(cuid())
+  integration String
+  ok          Boolean
+  message     String
+  count       Int      @default(0)
+  createdAt   DateTime @default(now())
+}

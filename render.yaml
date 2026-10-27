@@ -1,0 +1,66 @@
+# Render.com "Blueprint": zet de app, de database en de opslag voor foto's/video's in één keer online.
+# Gebruik: render.com › New › Blueprint › kies deze repository. Render vraagt dan om je inlog (SEED_*).
+#
+# Kosten (indicatie): webservice 0.5c-512mb ≈ $7/maand, database 0.1c-256mb ≈ $6/maand, schijf $0,25/GB.
+# Gratis proberen: zet beide 'plan' op 'free' en haal het 'disk'-blok weg (uploads gaan dan verloren bij elke
+# nieuwe versie; de gratis database wordt na 30 dagen verwijderd).
+
+services:
+  - type: web
+    name: stalbeheer
+    runtime: node
+    plan: 0.5c-512mb
+    region: frankfurt
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npx prisma db push --skip-generate && npm run db:seed && npm start
+    healthCheckPath: /login
+    disk:
+      name: uploads
+      mountPath: /data/uploads
+      sizeGB: 20
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: stalbeheer-db
+          property: connectionString
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: SYNC_SECRET
+        generateValue: true
+      - key: UPLOAD_DIR
+        value: /data/uploads
+      - key: APP_TIMEZONE
+        value: Europe/Amsterdam
+      - key: SEED_OWNER_NAME
+        sync: false
+      - key: SEED_OWNER_EMAIL
+        sync: false
+      - key: SEED_OWNER_PASSWORD
+        sync: false
+
+  # Dagelijkse synchronisatie van Equipe-resultaten en FleetGo-ritten (05:00 NL-tijd = 03:00 UTC), ≈ $1/maand.
+  # Niet nodig? Haal dit blok weg en gebruik de knoppen "Equipe/FleetGo nu ophalen" in de app.
+  - type: cron
+    name: stalbeheer-sync
+    runtime: node
+    plan: 0.5c-512mb
+    region: frankfurt
+    schedule: "0 3 * * *"
+    buildCommand: "true"
+    startCommand: curl -fsS -H "Authorization: Bearer $SYNC_SECRET" "http://$APP_HOSTPORT/api/sync"
+    envVars:
+      - key: SYNC_SECRET
+        fromService:
+          type: web
+          name: stalbeheer
+          envVarKey: SYNC_SECRET
+      - key: APP_HOSTPORT
+        fromService:
+          type: web
+          name: stalbeheer
+          property: hostport
+
+databases:
+  - name: stalbeheer-db
+    plan: 0.1c-256mb
+    region: frankfurt
