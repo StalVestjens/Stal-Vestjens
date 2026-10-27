@@ -2,17 +2,40 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const db = new PrismaClient();
+const DEFAULT_EMAIL = "eigenaar@voorbeeld.nl";
 
+/**
+ * Eerste inrichting. Draait bij elke start (idempotent).
+ *
+ * Eigenaar-account: komt uit SEED_OWNER_EMAIL / SEED_OWNER_PASSWORD / SEED_OWNER_NAME.
+ * Die waarden zijn leidend: wijzig je het wachtwoord in Render (Environment) en start de app
+ * opnieuw, dan geldt het nieuwe wachtwoord. Zo kan de eigenaar altijd weer binnen.
+ * Zonder deze waarden wordt alleen buiten productie een standaardaccount aangemaakt.
+ */
 async function main() {
-  const email = (process.env.SEED_OWNER_EMAIL ?? "eigenaar@voorbeeld.nl").toLowerCase();
-  const password = process.env.SEED_OWNER_PASSWORD ?? "wachtwoord123";
-  const name = process.env.SEED_OWNER_NAME ?? "Eigenaar";
+  const email = (process.env.SEED_OWNER_EMAIL ?? "").toLowerCase().trim();
+  const password = (process.env.SEED_OWNER_PASSWORD ?? "").trim();
+  const name = (process.env.SEED_OWNER_NAME ?? "").trim() || "Eigenaar";
 
-  await db.user.upsert({
-    where: { email },
-    update: {},
-    create: { name, email, role: "EIGENAAR", passwordHash: await bcrypt.hash(password, 10) },
-  });
+  if (email && password) {
+    await db.user.upsert({
+      where: { email },
+      update: { name, role: "EIGENAAR", active: true, passwordHash: await bcrypt.hash(password, 10) },
+      create: { name, email, role: "EIGENAAR", passwordHash: await bcrypt.hash(password, 10) },
+    });
+    // Een eventueel standaardaccount (uit een eerdere start zonder instellingen) uitschakelen.
+    if (email !== DEFAULT_EMAIL) await db.user.updateMany({ where: { email: DEFAULT_EMAIL }, data: { active: false } });
+    console.log(`Eigenaar-account bijgewerkt: ${email}`);
+  } else if (process.env.NODE_ENV !== "production") {
+    await db.user.upsert({
+      where: { email: DEFAULT_EMAIL },
+      update: {},
+      create: { name: "Eigenaar", email: DEFAULT_EMAIL, role: "EIGENAAR", passwordHash: await bcrypt.hash("wachtwoord123", 10) },
+    });
+    console.log(`Ontwikkelaccount: ${DEFAULT_EMAIL} / wachtwoord123`);
+  } else {
+    console.warn("SEED_OWNER_EMAIL en SEED_OWNER_PASSWORD zijn niet ingesteld; er is geen eigenaar-account aangemaakt.");
+  }
 
   const products = [
     { name: "Pensionstalling per maand", unitPrice: 650, vatRate: 21, unit: "maand" },
@@ -38,8 +61,6 @@ async function main() {
   for (const [key, value] of Object.entries(defaults)) {
     await db.setting.upsert({ where: { key }, update: {}, create: { key, value } });
   }
-
-  console.log(`Klaar. Inloggen met ${email} / ${password}`);
 }
 
 main().finally(() => db.$disconnect());

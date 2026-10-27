@@ -125,4 +125,6 @@ src/components/             formulieren en UI-bouwstenen
 
 **Tachograaftermijnen staan op 'onbekend'.** Vul bij Transport › Voertuigen de laatste downloaddatums in, of activeer de FleetGo-koppeling (en vraag FleetGo naar het endpoint voor de downloadstatus; zie `fleetgo.ts`).
 
+**Wachtwoord van de eigenaar vergeten?** Het eigenaarswachtwoord komt uit de instelling `SEED_OWNER_PASSWORD` (bij Render: de web service › Environment). Pas die aan en start de app opnieuw (Manual Deploy); daarna geldt het nieuwe wachtwoord. Medewerkers krijgen een nieuw wachtwoord via Instellingen › Medewerkers.
+
 **Ik wil pensionklanten zelf laten inloggen.** Dat is een uitbreiding: een rol `KLANT` toevoegen in `schema.prisma` en de pagina's filteren op `ownerId`. De basis (rollen, sessies) is er al.
