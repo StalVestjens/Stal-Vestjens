@@ -15,6 +15,7 @@ const items = [
   { href: "/zonnepanelen", label: "Zonnepanelen", icon: "☀️" },
   { href: "/rvo", label: "RVO I&R", icon: "🏛️" },
   { href: "/instellingen", label: "Instellingen", icon: "⚙️", owner: true },
+  { href: "/account", label: "Mijn account", icon: "👤" },
 ];
 
 export function Nav({ isOwner }: { isOwner: boolean }) {

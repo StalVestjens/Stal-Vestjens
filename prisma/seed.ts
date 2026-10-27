@@ -7,22 +7,25 @@ const DEFAULT_EMAIL = "eigenaar@voorbeeld.nl";
 /**
  * Eerste inrichting. Draait bij elke start (idempotent).
  *
- * Eigenaar-account: komt uit SEED_OWNER_EMAIL / SEED_OWNER_PASSWORD / SEED_OWNER_NAME.
- * Die waarden zijn leidend: wijzig je het wachtwoord in Render (Environment) en start de app
- * opnieuw, dan geldt het nieuwe wachtwoord. Zo kan de eigenaar altijd weer binnen.
+ * Eigenaar-account: wordt aangemaakt uit SEED_OWNER_EMAIL / SEED_OWNER_PASSWORD / SEED_OWNER_NAME.
+ * Bestaat het account al, dan blijft het wachtwoord dat de eigenaar zelf in de app heeft gekozen
+ * (Mijn account) bewaard. Noodherstel: zet SEED_OWNER_RESET=1 bij de hosting; dan wordt het
+ * wachtwoord bij de volgende start opnieuw op SEED_OWNER_PASSWORD gezet (daarna de vlag weghalen).
  * Zonder deze waarden wordt alleen buiten productie een standaardaccount aangemaakt.
  */
 async function main() {
   const email = (process.env.SEED_OWNER_EMAIL ?? "").toLowerCase().trim();
   const password = (process.env.SEED_OWNER_PASSWORD ?? "").trim();
   const name = (process.env.SEED_OWNER_NAME ?? "").trim() || "Eigenaar";
+  const reset = /^(1|ja|yes|true)$/i.test((process.env.SEED_OWNER_RESET ?? "").trim());
 
   if (email && password) {
     await db.user.upsert({
       where: { email },
-      update: { name, role: "EIGENAAR", active: true, passwordHash: await bcrypt.hash(password, 10) },
+      update: { role: "EIGENAAR", active: true, ...(reset ? { name, passwordHash: await bcrypt.hash(password, 10) } : {}) },
       create: { name, email, role: "EIGENAAR", passwordHash: await bcrypt.hash(password, 10) },
     });
+    if (reset) console.log("SEED_OWNER_RESET staat aan: wachtwoord van de eigenaar is opnieuw ingesteld. Haal de vlag nu weg.");
     // Een eventueel standaardaccount (uit een eerdere start zonder instellingen) uitschakelen.
     if (email !== DEFAULT_EMAIL) await db.user.updateMany({ where: { email: DEFAULT_EMAIL }, data: { active: false } });
     console.log(`Eigenaar-account bijgewerkt: ${email}`);
