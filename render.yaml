@@ -47,7 +47,7 @@ services:
     region: frankfurt
     schedule: "0 3 * * *"
     buildCommand: "true"
-    startCommand: curl -fsS -H "Authorization: Bearer $SYNC_SECRET" "http://$APP_HOSTPORT/api/sync"
+    startCommand: 'curl -fsS -H "Authorization: Bearer $SYNC_SECRET" "http://$APP_HOSTPORT/api/sync"'
     envVars:
       - key: SYNC_SECRET
         fromService:
