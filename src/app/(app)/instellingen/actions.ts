@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireSession, hashPassword } from "@/lib/auth";
-import { setSetting } from "@/lib/settings";
+import { setSetting, getSetting } from "@/lib/settings";
+import { saveFile, deleteStoredFile } from "@/lib/storage";
 import { str, num } from "@/lib/format";
 import type { FieldEntity, FieldType, Role } from "@prisma/client";
 import { testFleetGo } from "@/lib/integrations/fleetgo";
@@ -13,8 +14,40 @@ import { testWhatsApp } from "@/lib/integrations/whatsapp";
 
 export async function saveCompany(fd: FormData) {
   await requireSession("EIGENAAR");
-  for (const k of ["bedrijfsnaam", "adres", "kvk", "btw", "iban", "factuur_prefix", "betaaltermijn_dagen", "factuur_voettekst"]) await setSetting(k, String(fd.get(k) ?? "").trim());
+  for (const k of ["adres", "kvk", "btw", "iban", "factuur_prefix", "betaaltermijn_dagen", "factuur_voettekst"]) await setSetting(k, String(fd.get(k) ?? "").trim());
   revalidatePath("/instellingen");
+  redirect("/instellingen?ok=1");
+}
+
+export async function saveBranding(fd: FormData) {
+  await requireSession("EIGENAAR");
+  const naam = String(fd.get("bedrijfsnaam") ?? "").trim();
+  if (naam) await setSetting("bedrijfsnaam", naam);
+  for (const k of ["kleur_accent", "kleur_zijbalk"]) {
+    const v = String(fd.get(k) ?? "").trim().toLowerCase();
+    if (/^#[0-9a-f]{6}$/.test(v)) await setSetting(k, v);
+  }
+  const logo = fd.get("logo");
+  if (logo instanceof File && logo.size > 0) {
+    if (!/^image\/(png|jpeg|svg\+xml|webp)$/.test(logo.type) || logo.size > 5 * 1024 * 1024) redirect("/instellingen?fout=logo");
+    const old = await getSetting("logo_key");
+    const key = await saveFile(Buffer.from(await logo.arrayBuffer()), logo.name);
+    await setSetting("logo_key", key);
+    await setSetting("logo_mime", logo.type);
+    if (old) await deleteStoredFile(old);
+  }
+  revalidatePath("/", "layout");
+  redirect("/instellingen?ok=1");
+}
+
+export async function removeLogo() {
+  await requireSession("EIGENAAR");
+  const old = await getSetting("logo_key");
+  await setSetting("logo_key", "");
+  await setSetting("logo_mime", "");
+  if (old) await deleteStoredFile(old);
+  revalidatePath("/", "layout");
+  redirect("/instellingen?ok=1");
 }
 
 export async function saveIntegrations(fd: FormData) {

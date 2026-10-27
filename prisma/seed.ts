@@ -53,7 +53,7 @@ async function main() {
   }
 
   const defaults: Record<string, string> = {
-    bedrijfsnaam: "Mijn Paardenhouderij",
+    bedrijfsnaam: "Stal Vestjens",
     adres: "",
     kvk: "",
     btw: "",
@@ -64,6 +64,8 @@ async function main() {
   for (const [key, value] of Object.entries(defaults)) {
     await db.setting.upsert({ where: { key }, update: {}, create: { key, value } });
   }
+  // Oude plaatsvervangende naam uit een eerdere versie vervangen door de echte bedrijfsnaam.
+  await db.setting.updateMany({ where: { key: "bedrijfsnaam", value: "Mijn Paardenhouderij" }, data: { value: "Stal Vestjens" } });
 }
 
 main().finally(() => db.$disconnect());
